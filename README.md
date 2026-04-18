@@ -37,45 +37,67 @@ npm run preview
 
 将 `dist/` 部署到任意静态站点托管（如 Nginx、GitHub Pages、对象存储静态网站等）即可。
 
-## 部署到 Gitee Pages
+## 添加 GitHub 远程并推送
 
-本项目在 Gitee 上的仓库名为 `king-cards` 时，站点地址为 `https://<你的用户名>.gitee.io/king-cards/`，静态资源需带仓库路径前缀，请使用专用构建命令（勿用普通 `npm run build` 部署到 Gitee 项目页）。
+在 [GitHub](https://github.com) 新建一个空仓库（建议仓库名与下方 `base` 一致，例如 **`king-cards`**，且不要勾选「用 README 初始化」，避免首次推送冲突）。
 
-### 1. 构建
-
-```bash
-npm run build:gitee
-```
-
-产物仍在 `dist/` 目录。本地按 Gitee 同款路径预览：
+在项目根目录执行（将 `你的用户名`、仓库地址换成你的实际值）：
 
 ```bash
-npm run preview:gitee
+git remote add github https://github.com/你的用户名/king-cards.git
+git push -u github main
 ```
 
-浏览器访问 <http://localhost:4173/king-cards/>（端口以终端输出为准）。
+若本地默认分支不是 `main`，把上面命令里的 `main` 改成你的分支名。
 
-### 2. 在 Gitee 上开启 Pages
+之后可同时保留 Gitee 与 GitHub：
 
-1. 登录 [Gitee](https://gitee.com)，进入本仓库（例如 `arino/king-cards`）。
-2. 将包含本次改动的代码推送到远程（若尚未推送）：`git push origin main`。
-3. 打开 **服务 → Gitee Pages**（部分界面在 **管理** 或 **设置** 中的「Gitee Pages」入口）。
-4. 按页面说明完成 **实名认证**（若提示必须认证才能使用 Pages）。
-5. 部署方式任选其一：
-   - **推荐**：部署分支选 **`main`**（或你的默认分支），**部署目录**填 **`dist`**（即使用仓库里的 `dist/` 作为网站根目录）。本地执行 `npm run build:gitee` 后，由于本仓库默认 **忽略 `dist/`**，需用 **`git add -f dist/`** 再提交并推送，Gitee 才能拿到构建产物。
-   - **备选**：新建分支（如 `gitee-pages`），仅将 `dist/` **根目录内文件**（含 `index.html`、`assets/`）推到该分支根目录，Pages 选择该分支、部署目录为 **`/`**（该分支可不跟踪源码，仅跟踪静态文件）。
+```bash
+git push origin main    # Gitee
+git push github main    # GitHub
+```
 
-6. 在 Pages 页面点击 **启动** 或 **更新**。Gitee 可能要求每次推送后 **手动点一次「更新」** 才会重新部署。
+仅需 GitHub 时，可把 `origin` 改成指向 GitHub，或删除原 `origin` 再添加（谨慎操作）。
 
-### 3. 访问
+---
 
-部署成功后，使用页面给出的地址访问，一般为：
+## 部署到 GitHub Pages
 
-`https://<你的用户名>.gitee.io/king-cards/`
+项目型 Pages 的地址为 `https://<你的用户名>.github.io/<仓库名>/`，静态资源必须带仓库路径前缀。请使用 **`npm run build:pages`**（勿用普通 `npm run build` 部署到该地址）。
 
-### 4. 若仓库改名
+### 方式一：GitHub Actions（推荐）
 
-若 Gitee 仓库名不是 `king-cards`，需把 `package.json` 里 `build:gitee`、`preview:gitee` 中的路径 `/king-cards/` 改成 `/你的仓库名/`（保持首尾斜杠），再重新构建与部署。
+仓库已包含工作流 [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)：向 **`main`** 推送时会自动执行 `npm ci` 与 `npm run build:pages`，并将 `dist/` 发布到 Pages（无需把 `dist/` 提交进 Git）。
+
+1. 将包含工作流与脚本的提交推送到 GitHub：`git push github main`。
+2. 在 GitHub 打开该仓库 → **Settings → Pages**。
+3. **Build and deployment** 中，**Source** 选 **GitHub Actions**（不要选 Deploy from a branch，除非你改用分支部署）。
+4. 回到 **Actions** 页签，等待「部署 GitHub Pages」工作流跑完；若失败，点开日志查看报错。
+5. 部署成功后访问：`https://<你的用户名>.github.io/king-cards/`
+
+首次使用 Pages 时，若仓库为 **私有**，需在 Settings → Pages 中确认当前账号/组织允许对私有仓库使用 Pages（视 GitHub 套餐而定）。
+
+### 方式二：手动发布到 `gh-pages` 分支（无 Actions 时）
+
+```bash
+npm run build:pages
+npx --yes gh-pages -d dist
+```
+
+然后在 **Settings → Pages** 里将 **Source** 设为分支 **`gh-pages`**、目录 **`/(root)`**。若未安装 `gh-pages`，可先 `npm install -D gh-pages` 再执行，或使用其他方式把 `dist/` 内容推到 `gh-pages` 分支根目录。
+
+### 本地按线上路径预览
+
+```bash
+npm run build:pages
+npm run preview:pages
+```
+
+浏览器打开终端提示的地址下的 **`/king-cards/`** 路径（例如 <http://localhost:4173/king-cards/>）。
+
+### 若 GitHub 仓库名不是 `king-cards`
+
+把 [`package.json`](package.json) 中 `build:pages`、`preview:pages` 里的 `/king-cards/` 改成 `/你的仓库名/`（保持首尾斜杠），提交后再推送并重新部署。
 
 ## 测试
 
@@ -95,9 +117,9 @@ npm run test:watch
 |------|------|
 | `npm run dev` | 开发模式 |
 | `npm run build` | 生产构建 |
-| `npm run build:gitee` | 供 Gitee Pages 使用的构建（`base=/仓库名/`） |
+| `npm run build:pages` | 供 GitHub Pages 等项目站使用的构建（`base=/仓库名/`） |
 | `npm run preview` | 预览构建结果 |
-| `npm run preview:gitee` | 预览 Gitee 同款子路径（需先 `build:gitee`） |
+| `npm run preview:pages` | 按线上子路径预览（需先 `build:pages`） |
 | `npm test` | 运行单元测试（Vitest） |
 | `npm run test:watch` | 测试监听模式 |
 
