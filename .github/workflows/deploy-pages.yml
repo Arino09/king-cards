@@ -1,9 +1,11 @@
-# 推送至 main 时构建并部署到 GitHub Pages（项目站：https://<用户>.github.io/<仓库名>/）
+# 推送至默认分支时构建并部署到 GitHub Pages（项目站：https://<用户>.github.io/<仓库名>/）
+# 与官方 Pages 模板一致：upload-pages-artifact@v3 + deploy-pages@v5
 name: 部署 GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -25,9 +27,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:pages
-      - uses: actions/upload-pages-artifact@v3
+      - name: 配置 Pages 元数据
+        uses: actions/configure-pages@v5
+      - name: 上传构建产物
+        uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: ./dist
 
   deploy:
     runs-on: ubuntu-latest
@@ -37,4 +42,5 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        name: 部署到 GitHub Pages
+        uses: actions/deploy-pages@v5

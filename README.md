@@ -67,15 +67,24 @@ git push github main    # GitHub
 
 ### 方式一：GitHub Actions（推荐）
 
-仓库已包含工作流 [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)：向 **`main`** 推送时会自动执行 `npm ci` 与 `npm run build:pages`，并将 `dist/` 发布到 Pages（无需把 `dist/` 提交进 Git）。
+仓库已包含工作流 [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)：向 **`main`** 或 **`master`** 推送时会自动执行 `npm ci` 与 `npm run build:pages`，并将 `dist/` 发布到 Pages（无需把 `dist/` 提交进 Git）。也可在 **Actions** 里手动运行「部署 GitHub Pages」工作流（**workflow_dispatch**）。
 
-1. 将包含工作流与脚本的提交推送到 GitHub：`git push github main`。
+1. 将包含工作流与脚本的提交推送到 GitHub：`git push github main`（或你的默认分支名）。
 2. 在 GitHub 打开该仓库 → **Settings → Pages**。
 3. **Build and deployment** 中，**Source** 选 **GitHub Actions**（不要选 Deploy from a branch，除非你改用分支部署）。
 4. 回到 **Actions** 页签，等待「部署 GitHub Pages」工作流跑完；若失败，点开日志查看报错。
 5. 部署成功后访问：`https://<你的用户名>.github.io/king-cards/`
 
 首次使用 Pages 时，若仓库为 **私有**，需在 Settings → Pages 中确认当前账号/组织允许对私有仓库使用 Pages（视 GitHub 套餐而定）。
+
+#### Actions 失败常见原因
+
+| 现象 | 处理 |
+|------|------|
+| **`npm ci` 报错** | 确保 **`package-lock.json`** 已提交并与 `package.json` 一致；本地执行 `npm install` 后重新提交 lock 文件。 |
+| **`deploy` 报 artifact / 403** | 将工作流更新为使用 **`actions/deploy-pages@v5`**（本仓库已对齐官方模板）；确认 **Settings → Pages → Source** 为 **GitHub Actions**。 |
+| **工作流未触发** | 默认分支若是 **`master`**，需推送 `master`（工作流已监听 `main` 与 `master`）；或到 Actions 里手动运行。 |
+| **`github-pages` 环境等待审批** | 若组织策略要求 **Environment** 审批，到 Actions 运行页或仓库 **Settings → Environments** 里批准部署。 |
 
 ### 方式二：手动发布到 `gh-pages` 分支（无 Actions 时）
 
