@@ -1,0 +1,31 @@
+.root {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 2rem;
+  min-height: 100vh;
+}
+
+.header {
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid #2a3340;
+  padding-bottom: 0.75rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.sub {
+  margin: 0.35rem 0 0;
+  color: #9aa7b8;
+  font-size: 0.9rem;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
