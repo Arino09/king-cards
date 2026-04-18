@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:gitee": "vite build --base=/king-cards/",
     "preview": "vite preview",
+    "preview:gitee": "vite preview --base=/king-cards/",
     "test": "vitest run",
     "test:watch": "vitest"
   },
