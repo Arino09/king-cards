@@ -1,6 +1,52 @@
 # 卡牌对弈（单机 Web）
 
-基于《卡牌游戏规则》的纯前端单机对弈应用，使用 Vite、React、TypeScript 构建。
+基于《卡牌游戏规则》的纯前端单机应用：爬塔肉鸽（七层塔、天气、每日行动、商店、Boss / NPC 战）与回合制卡牌对弈，使用 Vite、React、TypeScript 构建。
+
+## 游戏模块
+
+### 玩法概览
+
+开局依次经过**开始菜单 → 角色选择 → 肉鸽 Buff 选择 → 组牌**（十张，须含国王与平民），进入**塔内**后按天行动：打工、访问 NPC、挑战 Boss、商店购物等；战斗为与规则一致的**双方选牌、统一结算**，可查看弃牌堆与对方可见 / 不可见牌组数量；通关或失败后进入**游戏结束**。
+
+### 界面（`src/ui/`）
+
+| 模块 | 文件 | 说明 |
+|------|------|------|
+| 应用壳 | `GameApp.tsx` | 按当前 `screen` 切换各屏 |
+| 开始与开局 | `StartScreen.tsx`、`CharacterSelectScreen.tsx`、`BuffSelectScreen.tsx`、`DeckSetupScreen.tsx` | 菜单、四名角色与被动、`DeckSetupScreen` 组牌 |
+| 塔与战斗 | `TowerScreen.tsx`、`BattleScreen.tsx` | 塔内 HUD、每日行动、事件日志；对弈主界面与回合流程 |
+| 商店与终局 | `ShopScreen.tsx`、`GameOverScreen.tsx` | 日替商店购物；通关 / 失败结算 |
+
+仓库中另有 `PlayScreen.tsx`、`SetupScreen.tsx` 等，对应早期单局流程，主入口已切至上述爬塔流程。
+
+### 规则与状态机（`src/game/`）
+
+| 模块 | 说明 |
+|------|------|
+| `manager.ts` | **游戏总管**：`createNewGame`、塔内行动（打工 / NPC / Boss / 商店 / 下一日）、`startBattle`、出牌确认、战斗结束与选卡奖励、回溯等，串联塔与战斗 |
+| `battleEngine.ts` | **战斗引擎**：合法着法、`compareCards`、回合结算文案、功能牌与天气相关效果、四象胜利、终局判定 |
+| `tower.ts` | **塔与 Meta**：随机天气、日替商店生成、楼层难度与 AI 检索深度映射、奖励卡牌、Buff 效果等 |
+| `types.ts` | **类型与数据**：`GameState` / `BattleState`、七层楼层配置、角色、肉鸽 Buff、商店条目等 |
+| `cardDefs.ts` | 全牌定义与可玩牌池 |
+| `compare.ts`、`rank.ts` | 基础牌比较链、等级与牌面展示文案 |
+| `deck.ts`、`validation.ts` | 组牌与出牌合法性（`validation` 亦服务于旧版单局状态机） |
+| `engine.ts` | 早期**单局对弈**状态机（`resolvePlay`、终局）；部分单元测试与 `minimax` 仍基于该模型 |
+| `ids.ts` | 卡牌实例 ID 生成 |
+| `special.ts` | 功能牌扩展相关占位 |
+
+### 机器人 AI（`src/ai/`）
+
+| 模块 | 说明 |
+|------|------|
+| `battleAi.ts` | 当前战斗使用的 AI：按难度在**本回合贪心**与**极小极大 + Alpha-Beta**（深度由 `tower.difficultyToDepth` 映射）之间切换 |
+| `evaluate.ts` | 战斗局面启发式估值（供 `battleAi` 等使用） |
+| `minimax.ts` | 面向旧版 `engine` 博弈树的搜索，与主流程中的 `battleEngine` 并行存在，便于规则回归 |
+
+### 全局状态（`src/store/`）
+
+| 模块 | 说明 |
+|------|------|
+| `useGameStore.ts` | Zustand：当前界面、角色 / Buff / 组牌临时状态、整局 `GameState`，以及出牌、塔内操作、回溯等 action |
 
 ## 环境要求
 
@@ -36,77 +82,6 @@ npm run preview
 ```
 
 将 `dist/` 部署到任意静态站点托管（如 Nginx、GitHub Pages、对象存储静态网站等）即可。
-
-## 添加 GitHub 远程并推送
-
-在 [GitHub](https://github.com) 新建一个空仓库（建议仓库名与下方 `base` 一致，例如 **`king-cards`**，且不要勾选「用 README 初始化」，避免首次推送冲突）。
-
-在项目根目录执行（将 `你的用户名`、仓库地址换成你的实际值）：
-
-```bash
-git remote add github https://github.com/你的用户名/king-cards.git
-git push -u github main
-```
-
-若本地默认分支不是 `main`，把上面命令里的 `main` 改成你的分支名。
-
-之后可同时保留 Gitee 与 GitHub：
-
-```bash
-git push origin main    # Gitee
-git push github main    # GitHub
-```
-
-仅需 GitHub 时，可把 `origin` 改成指向 GitHub，或删除原 `origin` 再添加（谨慎操作）。
-
----
-
-## 部署到 GitHub Pages
-
-项目型 Pages 的地址为 `https://<你的用户名>.github.io/<仓库名>/`，静态资源必须带仓库路径前缀。请使用 **`npm run build:pages`**（勿用普通 `npm run build` 部署到该地址）。
-
-### 方式一：GitHub Actions（推荐）
-
-仓库已包含工作流 [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)：向 **`main`** 或 **`master`** 推送时会自动执行 `npm ci` 与 `npm run build:pages`，并将 `dist/` 发布到 Pages（无需把 `dist/` 提交进 Git）。也可在 **Actions** 里手动运行「部署 GitHub Pages」工作流（**workflow_dispatch**）。
-
-1. 将包含工作流与脚本的提交推送到 GitHub：`git push github main`（或你的默认分支名）。
-2. 在 GitHub 打开该仓库 → **Settings → Pages**。
-3. **Build and deployment** 中，**Source** 选 **GitHub Actions**（不要选 Deploy from a branch，除非你改用分支部署）。
-4. 回到 **Actions** 页签，等待「部署 GitHub Pages」工作流跑完；若失败，点开日志查看报错。
-5. 部署成功后访问：`https://<你的用户名>.github.io/king-cards/`
-
-首次使用 Pages 时，若仓库为 **私有**，需在 Settings → Pages 中确认当前账号/组织允许对私有仓库使用 Pages（视 GitHub 套餐而定）。
-
-#### Actions 失败常见原因
-
-| 现象 | 处理 |
-|------|------|
-| **`npm ci` 报错** | 确保 **`package-lock.json`** 已提交并与 `package.json` 一致；本地执行 `npm install` 后重新提交 lock 文件。 |
-| **`deploy` 报 artifact / 403** | 将工作流更新为使用 **`actions/deploy-pages@v5`**（本仓库已对齐官方模板）；确认 **Settings → Pages → Source** 为 **GitHub Actions**。 |
-| **工作流未触发** | 默认分支若是 **`master`**，需推送 `master`（工作流已监听 `main` 与 `master`）；或到 Actions 里手动运行。 |
-| **`github-pages` 环境等待审批** | 若组织策略要求 **Environment** 审批，到 Actions 运行页或仓库 **Settings → Environments** 里批准部署。 |
-
-### 方式二：手动发布到 `gh-pages` 分支（无 Actions 时）
-
-```bash
-npm run build:pages
-npx --yes gh-pages -d dist
-```
-
-然后在 **Settings → Pages** 里将 **Source** 设为分支 **`gh-pages`**、目录 **`/(root)`**。若未安装 `gh-pages`，可先 `npm install -D gh-pages` 再执行，或使用其他方式把 `dist/` 内容推到 `gh-pages` 分支根目录。
-
-### 本地按线上路径预览
-
-```bash
-npm run build:pages
-npm run preview:pages
-```
-
-浏览器打开终端提示的地址下的 **`/king-cards/`** 路径（例如 <http://localhost:4173/king-cards/>）。
-
-### 若 GitHub 仓库名不是 `king-cards`
-
-把 [`package.json`](package.json) 中 `build:pages`、`preview:pages` 里的 `/king-cards/` 改成 `/你的仓库名/`（保持首尾斜杠），提交后再推送并重新部署。
 
 ## 测试
 
