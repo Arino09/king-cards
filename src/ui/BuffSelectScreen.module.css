@@ -1,0 +1,18 @@
+/* BuffSelectScreen */
+.wrap { display: flex; flex-direction: column; gap: 1.5rem; padding: 1rem 0; }
+.title { font-size: 1.5rem; color: #ffd700; margin: 0; }
+.hint { color: #9aa7b8; margin: -1rem 0 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
+.card {
+  background: #1a2432;
+  border: 1px solid #2a3a4a;
+  border-radius: 10px;
+  padding: 1rem;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, transform 0.1s;
+  color: #e0e8f0;
+}
+.card:hover { border-color: #ffd700; transform: translateY(-2px); }
+.buffName { font-size: 0.95rem; color: #ffd700; margin: 0 0 0.5rem; font-weight: 600; }
+.desc { font-size: 0.8rem; color: #9aa7b8; margin: 0; line-height: 1.5; }

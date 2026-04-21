@@ -1,0 +1,15 @@
+/* ShopScreen */
+.wrap { display: flex; flex-direction: column; gap: 1rem; padding: 0.5rem 0; }
+.title { font-size: 1.3rem; color: #ffd700; margin: 0; }
+.gold { font-size: 1rem; color: #ffd700; text-align: right; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; }
+.item { background: #1a2432; border: 1px solid #2a3a4a; border-radius: 8px; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.item.soldOut { opacity: 0.5; }
+.itemName { font-size: 0.9rem; font-weight: 600; color: #ffd700; }
+.itemType { font-size: 0.75rem; color: #9aa7b8; }
+.itemRank { font-size: 0.75rem; color: #5a6a7a; }
+.itemPrice { font-size: 0.85rem; color: #ffd700; margin-top: auto; }
+.buyBtn { margin-top: 0.5rem; padding: 0.4rem; background: #ffd700; color: #1a1a1a; border: none; border-radius: 4px; font-size: 0.8rem; cursor: pointer; font-weight: 600; }
+.buyBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.back { padding: 0.5rem 1rem; background: transparent; border: 1px solid #3a4a5a; border-radius: 6px; color: #9aa7b8; cursor: pointer; align-self: flex-start; }
+.back:hover { border-color: #ffd700; color: #ffd700; }

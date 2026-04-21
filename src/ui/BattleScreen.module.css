@@ -1,0 +1,55 @@
+/* BattleScreen */
+.wrap { display: flex; flex-direction: column; gap: 0.75rem; }
+.topBar { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; background: #1a2432; border: 1px solid #2a3a4a; border-radius: 8px; padding: 0.5rem 0.75rem; }
+.info { font-size: 0.85rem; color: #9aa7b8; }
+.unlimited { color: #ffd700; }
+.hands { display: flex; gap: 1rem; font-size: 0.85rem; }
+.myCards { color: #7fba7f; }
+.aiCards { color: #e07070; }
+.weather { font-size: 0.8rem; color: #ffd700; }
+.opponentZone { display: flex; flex-direction: column; gap: 0.5rem; background: #111a24; border: 1px solid #1a2a3a; border-radius: 8px; padding: 0.75rem; }
+.opponentHand { display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: center; }
+.faceDown { width: 36px; height: 50px; background: #2a3a4a; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+.table { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 0.75rem 0; border-top: 1px solid #1a2a3a; border-bottom: 1px solid #1a2a3a; }
+.tableCards { display: flex; gap: 2rem; }
+.tableCard { display: flex; flex-direction: column; align-items: center; background: #1a2432; border: 1px solid #ffd700; border-radius: 8px; padding: 0.5rem 1rem; min-width: 80px; }
+.tableCard span:first-child { font-size: 0.9rem; font-weight: 600; color: #ffd700; }
+.tableRank { font-size: 0.75rem; color: #9aa7b8; }
+.summary { font-size: 0.85rem; color: #9aa7b8; text-align: center; margin: 0; }
+.opponentInfo { display: flex; gap: 1rem; font-size: 0.8rem; color: #9aa7b8; flex-wrap: wrap; }
+.opponentPiles { display: flex; gap: 1rem; flex-wrap: wrap; }
+.pileSection { display: flex; flex-direction: column; gap: 0.25rem; }
+.pileLabel { font-size: 0.75rem; color: #5a6a7a; }
+.pileCards { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.pileChip { background: #1a2a3a; border-radius: 4px; padding: 0.15rem 0.4rem; font-size: 0.75rem; color: #9aa7b8; }
+.playerZone { display: flex; flex-direction: column; gap: 0.75rem; background: #1a2432; border: 1px solid #2a3a4a; border-radius: 8px; padding: 0.75rem; }
+.hand { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+.cardSlot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #0d1a24;
+  border: 2px solid #2a3a4a;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  min-width: 60px;
+  transition: border-color 0.15s, transform 0.1s;
+  position: relative;
+}
+.cardSlot:hover { border-color: #ffd700; transform: translateY(-3px); }
+.selectedSlot { border-color: #ffd700; background: #2a2a10; transform: translateY(-5px); }
+.slotName { font-size: 0.85rem; font-weight: 600; color: #e0e8f0; }
+.slotRank { font-size: 0.75rem; color: #9aa7b8; }
+.slotBanned { font-size: 0.65rem; color: #e07070; position: absolute; bottom: -1px; }
+.discardInfo { font-size: 0.8rem; color: #5a6a7a; text-align: center; }
+.actions { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; }
+.primaryBtn { padding: 0.6rem 1.5rem; background: #ffd700; color: #1a1a1a; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
+.primaryBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.rewindBtn { padding: 0.6rem 1rem; background: transparent; color: #7fba7f; border: 1px solid #7fba7f; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+.rewindBtn:hover { background: #1a2a1a; }
+.backBtn { padding: 0.6rem 1rem; background: transparent; color: #9aa7b8; border: 1px solid #3a4a5a; border-radius: 6px; cursor: pointer; }
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.endDialog { background: #1a2432; border: 1px solid #ffd700; border-radius: 12px; padding: 2rem; text-align: center; color: #e0e8f0; display: flex; flex-direction: column; gap: 0.75rem; align-items: center; }
+.endDialog h2 { margin: 0; color: #ffd700; }
+.endDialog p { margin: 0; font-size: 0.9rem; color: #9aa7b8; }

@@ -1,0 +1,51 @@
+/* CharacterSelectScreen */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+.title {
+  font-size: 1.5rem;
+  color: #ffd700;
+  margin: 0;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+.card {
+  background: #1a2432;
+  border: 1px solid #2a3a4a;
+  border-radius: 10px;
+  padding: 1.25rem;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, transform 0.1s;
+  color: #e0e8f0;
+}
+.card:hover {
+  border-color: #ffd700;
+  transform: translateY(-2px);
+}
+.name {
+  font-size: 1.1rem;
+  color: #ffd700;
+  margin: 0 0 0.5rem;
+}
+.passive {
+  font-size: 0.85rem;
+  color: #9aa7b8;
+  margin: 0;
+}
+.back {
+  align-self: flex-start;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid #3a4a5a;
+  border-radius: 6px;
+  color: #9aa7b8;
+  cursor: pointer;
+}
+.back:hover { border-color: #ffd700; color: #ffd700; }
