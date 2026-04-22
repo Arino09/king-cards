@@ -38,6 +38,7 @@ export type Screen =
   | "角色选择"
   | "Buff选择"
   | "组牌"
+  | "混乱自选"
   | "塔内"
   | "战斗"
   | "选卡奖励"
@@ -50,6 +51,8 @@ interface SelectState {
   selectedBuff: RoguelikeBuff | null;
   deckCounts: Partial<Record<CardKind, number>>;
   组牌错误: string | null;
+  /** Buff#10 混乱自选三张：已选的卡 */
+  chaosSelectedKinds: CardKind[];
 }
 
 interface GameStore {
@@ -62,6 +65,10 @@ interface GameStore {
   setCharacter: (c: CharacterId) => void;
   setBuff: (b: RoguelikeBuff) => void;
   resetSelect: () => void;
+
+  // ---------- 混乱自选 ----------
+  toggleChaosCard: (kind: CardKind) => void;
+  confirmChaosCards: () => void;
 
   // ---------- 组牌 ----------
   deckCounts: Partial<Record<CardKind, number>>;
@@ -88,6 +95,7 @@ interface GameStore {
   执行购买: (itemId: string) => void;
   访问主角: () => void;
   下一日: () => void;
+  关闭对话: () => void;
 
   // ---------- 奖励 ----------
   选择奖励卡: (kind: CardKind) => void;
@@ -109,13 +117,17 @@ const DEFAULT_SELECT: SelectState = {
   deckCounts: {
     国王: 1,
     平民: 1,
-    护卫: 2,
-    侍女: 2,
-    盗贼: 2,
-    贵族: 2,
+    护卫: 1,
+    侍女: 1,
+    盗贼: 1,
+    贵族: 1,
     大臣: 1,
+    弑君者: 1,
+    乱党: 1,
+    乞丐: 1,
   },
   组牌错误: null,
+  chaosSelectedKinds: [],
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -133,9 +145,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setBuff: (b) =>
     set((state) => ({
       select: { ...state.select, selectedBuff: b },
-      screen: "组牌",
+      screen: b === "混乱自选三张" ? "混乱自选" : "组牌",
     })),
   resetSelect: () => set({ select: DEFAULT_SELECT }),
+
+  // ---------- 混乱自选 ----------
+  toggleChaosCard: (kind) => {
+    set((state) => {
+      const current = state.select.chaosSelectedKinds;
+      if (current.includes(kind)) {
+        return { select: { ...state.select, chaosSelectedKinds: current.filter((k) => k !== kind) } };
+      }
+      if (current.length >= 3) return state;
+      return { select: { ...state.select, chaosSelectedKinds: [...current, kind] } };
+    });
+  },
+  confirmChaosCards: () => {
+    const { select } = get();
+    if (select.chaosSelectedKinds.length !== 3) return;
+    set({ select: { ...select, chaosSelectedKinds: select.chaosSelectedKinds }, screen: "组牌" });
+  },
 
   // ---------- 组牌 ----------
   deckCounts: { ...DEFAULT_SELECT.deckCounts },
@@ -144,6 +173,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setDeckCount: (kind, delta) => {
     set((state) => {
       const current = state.deckCounts[kind] ?? 0;
+      // 国王和平民最少保留1张，不能减少到0
+      if (delta < 0 && (kind === "国王" || kind === "平民") && current <= 1) {
+        return { deckCounts: state.deckCounts, 组牌错误: `${kind}至少保留1张` };
+      }
       const next = Math.max(0, current + delta);
       const newCounts = { ...state.deckCounts, [kind]: next };
       const total = Object.values(newCounts).reduce((a, b) => a + (b ?? 0), 0);
@@ -167,6 +200,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ---------- 开始游戏 ----------
   startNewGame: (character, buff, deckCounts) => {
+    // 先清除旧错误状态
+    set({ 组牌错误: null });
+
     const hand: CardKind[] = [];
     for (const [kind, count] of Object.entries(deckCounts)) {
       for (let i = 0; i < (count ?? 0); i++) {
@@ -174,8 +210,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     }
 
-    if (hand.length !== 10) {
-      set({ 组牌错误: "手牌必须是10张" });
+    if (hand.length < 2) {
+      set({ 组牌错误: "手牌至少需要2张（国王和平民）" });
+      return;
+    }
+    if (hand.length > 10) {
+      set({ 组牌错误: "手牌不能超过10张" });
       return;
     }
     if (!hand.includes("国王") || !hand.includes("平民")) {
@@ -183,7 +223,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
 
-    const game = createNewGame(character, buff, hand);
+    const game = createNewGame(character, buff, hand, get().select.chaosSelectedKinds);
     set({
       game,
       screen: "塔内",
@@ -320,10 +360,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
             ...game.tower.characterDialogueFlags,
             "主角": current + 1,
           },
+          currentDialogue: `[${game.tower.character}]：\n\n此处为对话，暂无`,
         },
         eventLog: [
           ...game.eventLog,
           `[访问主角] 剧情进度 +1（当前进度：${current + 1}）`,
+          `[对话] 此处为对话，暂无`,
         ],
       },
     });
@@ -342,6 +384,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
     } else {
       set({ game: updated });
     }
+  },
+
+  关闭对话: () => {
+    const { game } = get();
+    if (!game) return;
+    set({
+      game: {
+        ...game,
+        tower: { ...game.tower, currentDialogue: null },
+      },
+    });
   },
 
   // ---------- 奖励 ----------

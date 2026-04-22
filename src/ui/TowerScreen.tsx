@@ -1,7 +1,49 @@
+import { useState } from "react";
 import { useGameStore } from "@/store/useGameStore";
 import { TOWER_FLOORS, CHARACTERS } from "@/game/types";
 import { weatherDescription } from "@/game/tower";
 import styles from "./TowerScreen.module.css";
+
+function DialogueModal({ text, onClose }: { text: string; onClose: () => void }) {
+  return (
+    <div className={styles.dialogueOverlay}>
+      <div className={styles.dialogueBox}>
+        <p className={styles.dialogueText}>{text}</p>
+        <button className={styles.dialogueCloseBtn} onClick={onClose}>
+          关闭
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DeckModal({ deck, onClose }: { deck: string[]; onClose: () => void }) {
+  // 统计各卡牌数量
+  const counts: Record<string, number> = {};
+  for (const k of deck) {
+    counts[k] = (counts[k] ?? 0) + 1;
+  }
+  const entries = Object.entries(counts);
+
+  return (
+    <div className={styles.dialogueOverlay}>
+      <div className={styles.dialogueBox} style={{ maxWidth: 360 }}>
+        <h3 className={styles.deckTitle}>我的卡组（{deck.length}张）</h3>
+        <div className={styles.deckList}>
+          {entries.map(([kind, count]) => (
+            <div key={kind} className={styles.deckRow}>
+              <span className={styles.deckName}>{kind}</span>
+              <span className={styles.deckCount}>×{count}</span>
+            </div>
+          ))}
+        </div>
+        <button className={styles.dialogueCloseBtn} onClick={onClose}>
+          关闭
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function TowerScreen() {
   const game = useGameStore((s) => s.game);
@@ -11,6 +53,7 @@ export function TowerScreen() {
   const 访问主角 = useGameStore((s) => s.访问主角);
   const setScreen = useGameStore((s) => s.setScreen);
   const 下一日 = useGameStore((s) => s.下一日);
+  const 关闭对话 = useGameStore((s) => s.关闭对话);
 
   if (!game) return null;
 
@@ -20,9 +63,26 @@ export function TowerScreen() {
   const char = CHARACTERS[tower.character];
   const alreadyActed = tower.todayAction !== null;
   const protagonistVisited = tower.protagonistVisitedToday;
+  const [showDeck, setShowDeck] = useState(false);
 
   return (
     <div className={styles.wrap}>
+      {/* 对话弹窗 */}
+      {tower.currentDialogue && (
+        <DialogueModal
+          text={tower.currentDialogue}
+          onClose={关闭对话}
+        />
+      )}
+
+      {/* 卡组弹窗 */}
+      {showDeck && (
+        <DeckModal
+          deck={tower.lockedDeck}
+          onClose={() => setShowDeck(false)}
+        />
+      )}
+
       {/* 顶部状态栏 */}
       <div className={styles.statusBar}>
         <div className={styles.statusItem}>
@@ -46,6 +106,11 @@ export function TowerScreen() {
         <div className={styles.statusItem}>
           <span className={styles.label}>角色</span>
           <span className={styles.value}>{char.name}</span>
+        </div>
+        <div className={styles.statusItem}>
+          <button className={styles.deckBtn} onClick={() => setShowDeck(true)}>
+            我的卡组
+          </button>
         </div>
       </div>
 

@@ -44,6 +44,7 @@ export function BattleScreen() {
   const 确认出牌 = useGameStore((s) => s.确认出牌);
   const 回合结束继续 = useGameStore((s) => s.回合结束继续);
   const 执行回溯 = useGameStore((s) => s.执行回溯);
+  const 关闭对话 = useGameStore((s) => s.关闭对话);
   const setScreen = useGameStore((s) => s.setScreen);
   const canRewind = useGameStore((s) => s.canRewind);
 
@@ -62,6 +63,18 @@ export function BattleScreen() {
 
   return (
     <div className={styles.wrap}>
+      {/* 战斗前对话弹窗 */}
+      {game.tower.currentDialogue && (
+        <div className={styles.dialogueOverlay}>
+          <div className={styles.dialogueBox}>
+            <p className={styles.dialogueText}>{game.tower.currentDialogue}</p>
+            <button className={styles.dialogueCloseBtn} onClick={关闭对话}>
+              开始对战
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 顶部信息 */}
       <div className={styles.topBar}>
         <div className={styles.info}>

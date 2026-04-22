@@ -19,6 +19,11 @@ export function getCardRank(
 
   let rank = def.baseRank;
 
+  // 0. 随机等级覆盖（平民随机能力/国王随机能力 buff）：从 battle 中取固定随机值
+  if (battle.randomRank && battle.randomRank[card.id] !== undefined) {
+    rank = battle.randomRank[card.id]!;
+  }
+
   // 1. 条件变牌（弑君者/乱党/乞丐）
   if (def.type === "conditional_rank" && def.conditionalKind && def.conditionalRank !== undefined) {
     const hand = side === "玩家" ? battle.playerHand : battle.aiHand;
@@ -63,12 +68,17 @@ export function getCardRank(
     }
   }
 
-  // 6. 指数形态
+  // 6. 指数形态：等级^2
   if (battle.exponentialActive[side] && def.baseRank > 0) {
     rank = rank * rank;
   }
 
-  // 7. 文明效果：全部变成国王（等级1）
+  // 7. 孤注一掷：等级/2（已在指数形态后执行）
+  if (battle.gamblerActive[side] && def.baseRank > 0) {
+    rank = Math.floor(rank / 2);
+  }
+
+  // 8. 文明效果：全部变成国王（等级1）
   if (battle.civilizationActive[side]) {
     if (card.kind !== "国王") {
       rank = 1; // 变国王

@@ -26,14 +26,14 @@ export interface CardEffect {
     | "round_modifier"      // 暖日/雪花：回合内持续修正
     | "trigger_modifier"    // 偶数/奇数/指数形态：触发时修正
     | "win_gold_boost"      // 金色项链：获胜金币翻倍
-    | "continuous_rank"      // 永不放弃/奉献精神：持续变化
-    | "random_loss"         // 孤注一掷：每次出牌随机弃牌
-    | "random_swap"         // 白日梦：每回合随机换牌
-    | "recall"              // 希望：召回弃牌
-    | "discard_opponent"    // 恶魔：丢弃对手随机牌
-    | "four_symbols"        // 四象：全部四象赢过则直接胜利
+    | "continuous_rank"       // 永不放弃/奉献精神：持续变化
+    | "random_loss"          // 孤注一掷：每次出牌随机弃牌
+    | "random_swap"          // 白日梦：每回合随机换牌
+    | "recall"               // 希望：召回弃牌
+    | "discard_opponent"     // 恶魔：丢弃对手随机牌
+    | "four_symbols"         // 四象：全部四象赢过对方，直接胜利
     | "four_symbols_trigger" // 四象之一：标记已赢过
-    | "none";               // 无特殊效果
+    | "none";                // 无特殊效果
 
   /** 对应 CardKind 表里的牌名 */
   name: string;
@@ -65,6 +65,9 @@ export interface CardEffect {
 
   /** 是否计入不可见牌组 */
   inHiddenDeck?: boolean;
+
+  /** 效果描述文本 */
+  description?: string;
 }
 
 function card<
@@ -91,6 +94,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 1,
     rankType: "整数",
     required: true,
+    description: "等级1。平民能战胜国王（平民>国王）。",
   },
   大臣: {
     type: "none",
@@ -98,6 +102,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     cardType: "基础",
     baseRank: 2,
     rankType: "整数",
+    description: "等级2。等级低的卡胜等级高的卡。",
   },
   平民: {
     type: "none",
@@ -106,6 +111,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 3,
     rankType: "整数",
     required: true,
+    description: "等级3。平民能战胜国王（平民>国王）。",
   },
 
   // ========== 补充基础卡 ==========
@@ -116,6 +122,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 1.5,
     rankType: "半",
     inVisibleDeck: true,
+    description: "等级1.5。烈日+0.5，冰雹-0.5。",
   },
   侍女: {
     type: "none",
@@ -124,6 +131,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 2.5,
     rankType: "半",
     inVisibleDeck: true,
+    description: "等级2.5。烈日+0.5，冰雹-0.5。",
   },
   盗贼: {
     type: "none",
@@ -132,6 +140,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 3.5,
     rankType: "半",
     inVisibleDeck: true,
+    description: "等级3.5。烈日+0.5，冰雹-0.5。",
   },
   贵族: {
     type: "none",
@@ -140,6 +149,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 1.1,
     rankType: "分数",
     inVisibleDeck: true,
+    description: "等级1.1。",
   },
   王后: {
     type: "none",
@@ -148,36 +158,40 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 1.1,
     rankType: "分数",
     inVisibleDeck: true,
+    description: "等级1.1。",
   },
   弑君者: {
     type: "conditional_rank",
     name: "弑君者",
     cardType: "补充",
-    baseRank: 3, // 原本等级3
+    baseRank: 3,
     rankType: "分数",
     conditionalKind: "国王",
     conditionalRank: 1,
     inVisibleDeck: true,
+    description: "手中没有国王时，等级变为1；有国王时等级为3。",
   },
   乱党: {
     type: "conditional_rank",
     name: "乱党",
     cardType: "补充",
-    baseRank: 2, // 原本等级2
+    baseRank: 2,
     rankType: "分数",
     conditionalKind: "大臣",
     conditionalRank: 2,
     inVisibleDeck: true,
+    description: "手中没有大臣时，等级变为2。",
   },
   乞丐: {
     type: "conditional_rank",
     name: "乞丐",
     cardType: "补充",
-    baseRank: 3, // 原本等级3
+    baseRank: 3,
     rankType: "分数",
     conditionalKind: "平民",
     conditionalRank: 3,
     inVisibleDeck: true,
+    description: "手中没有平民时，等级变为3。",
   },
 
   // ========== 功能卡 ==========
@@ -188,6 +202,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     inVisibleDeck: true,
+    description: "本回合强制双败（双方牌都入弃牌堆）。",
   },
   伪神: {
     type: "must_win",
@@ -196,6 +211,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     inVisibleDeck: true,
+    description: "本回合必赢，但下回合直接输掉本次对局。",
   },
   占卜师: {
     type: "must_loss_then_win",
@@ -204,6 +220,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     inVisibleDeck: true,
+    description: "本回合必输，下回合必赢。",
   },
   影子: {
     type: "copy_opponent",
@@ -212,6 +229,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     inVisibleDeck: true,
+    description: "复制对手上一张出的牌，用对手牌的等级比较。",
   },
   命运: {
     type: "swap_visible",
@@ -220,6 +238,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     inVisibleDeck: true,
+    description: "本局临时交换两边的可见牌组。",
   },
   文明: {
     type: "all_become_king",
@@ -228,6 +247,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     inVisibleDeck: true,
+    description: "本局你剩下的卡全部成为国王（等级1）。",
   },
   希望: {
     type: "recall",
@@ -236,6 +256,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     inVisibleDeck: true,
+    description: "将你一张随机牌从弃牌堆召回到手牌。",
   },
   恶魔: {
     type: "discard_opponent",
@@ -244,6 +265,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     inVisibleDeck: true,
+    description: "将对方的一张随机牌放入弃牌堆。",
   },
 
   // ========== 能力卡（必输） ==========
@@ -253,8 +275,9 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     cardType: "能力",
     baseRank: 0,
     rankType: "零",
-    param: 0.25, // .5牌-0.25（修正值）
+    param: 0.25,
     inVisibleDeck: true,
+    description: "本局对弈你的全部0.5牌等级-0.25。",
   },
   雪花: {
     type: "round_modifier",
@@ -262,16 +285,18 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     cardType: "能力",
     baseRank: 0,
     rankType: "零",
-    param: 0.25, // .5牌+0.25（修正值）
+    param: 0.25,
     inVisibleDeck: true,
+    description: "本局对弈敌人的全部0.5牌等级+0.25。",
   },
   亚特兰蒂斯: {
-    type: "none", // 取消上限回合数限制，由战斗系统处理
+    type: "none",
     name: "亚特兰蒂斯",
     cardType: "能力",
     baseRank: 0,
     rankType: "零",
     inVisibleDeck: true,
+    description: "本局对弈无视回合数上限限制。",
   },
   偶数形态: {
     type: "trigger_modifier",
@@ -279,8 +304,9 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     cardType: "能力",
     baseRank: 0,
     rankType: "零",
-    param: 0, // triggerMod = "even"
+    param: 0,
     inVisibleDeck: true,
+    description: "本局对弈你的偶数回合等级-1。",
   },
   奇数形态: {
     type: "trigger_modifier",
@@ -288,8 +314,9 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     cardType: "能力",
     baseRank: 0,
     rankType: "零",
-    param: 1, // triggerMod = "odd"
+    param: 1,
     inVisibleDeck: true,
+    description: "本局对弈你的奇数回合等级-1。",
   },
   指数形态: {
     type: "trigger_modifier",
@@ -297,8 +324,9 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     cardType: "能力",
     baseRank: 0,
     rankType: "零",
-    param: 2, // special: 等级^2 + 额外弃一张
+    param: 2,
     inVisibleDeck: true,
+    description: "本局对弈等级^2，每次出牌额外失去一张可见牌组的牌。",
   },
   金色项链: {
     type: "win_gold_boost",
@@ -307,6 +335,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     inVisibleDeck: true,
+    description: "本场获胜后获得金币×2。",
   },
   永不放弃: {
     type: "continuous_rank",
@@ -314,8 +343,9 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     cardType: "功能",
     baseRank: 4,
     rankType: "特殊",
-    param: -0.1, // 每次-0.1
+    param: -0.1,
     inVisibleDeck: true,
+    description: "本局初始4，每次出牌-0.1，最低为0。",
   },
   奉献精神: {
     type: "continuous_rank",
@@ -323,8 +353,9 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     cardType: "功能",
     baseRank: 1,
     rankType: "特殊",
-    param: 0.1, // 每次+0.1
+    param: 0.1,
     inVisibleDeck: true,
+    description: "本局初始1，每次出牌+0.1。",
   },
   孤注一掷: {
     type: "random_loss",
@@ -333,6 +364,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     inVisibleDeck: true,
+    description: "每次出牌后随机失去自己一张可见牌组的牌（等级/2）。",
   },
   白日梦: {
     type: "random_swap",
@@ -341,6 +373,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     inVisibleDeck: true,
+    description: "每一回合你的可见牌组中的一张牌被换成一张随机的牌。",
   },
 
   // ========== 四象 ==========
@@ -351,6 +384,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 1.6,
     rankType: "分数",
     inVisibleDeck: true,
+    description: "四象之一。全部四象都赢过对方，直接胜利。",
   },
   "四象—白虎": {
     type: "four_symbols",
@@ -359,6 +393,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 2,
     rankType: "整数",
     inVisibleDeck: true,
+    description: "四象之一。全部四象都赢过对方，直接胜利。",
   },
   "四象—朱雀": {
     type: "four_symbols",
@@ -367,6 +402,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 2.1,
     rankType: "分数",
     inVisibleDeck: true,
+    description: "四象之一。全部四象都赢过对方，直接胜利。",
   },
   "四象—玄武": {
     type: "four_symbols",
@@ -375,6 +411,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 2.6,
     rankType: "分数",
     inVisibleDeck: true,
+    description: "四象之一。全部四象都赢过对方，直接胜利。",
   },
 
   // ========== 一次性卡 ==========
@@ -385,6 +422,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     consumable: true,
+    description: "未开牌时看穿对方出的牌。",
   },
   后悔牌: {
     type: "none",
@@ -393,6 +431,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     consumable: true,
+    description: "重新出本次自己已出的牌。",
   },
   "减0.5牌": {
     type: "none",
@@ -401,6 +440,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     consumable: true,
+    description: "本次结果自己的牌等级-0.5。",
   },
   "减1牌": {
     type: "none",
@@ -409,6 +449,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     consumable: true,
+    description: "本次结果自己的牌等级-1。",
   },
   "加0.5牌": {
     type: "none",
@@ -417,6 +458,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     consumable: true,
+    description: "本次结果对方的牌等级+0.5。",
   },
   "加1牌": {
     type: "none",
@@ -425,6 +467,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     consumable: true,
+    description: "本次结果对方的牌等级+1。",
   },
   功能失效牌: {
     type: "none",
@@ -433,6 +476,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     consumable: true,
+    description: "对手本回合的功能牌失效。",
   },
   能力失效牌: {
     type: "none",
@@ -441,6 +485,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     consumable: true,
+    description: "对手本回合的能力牌失效。",
   },
   续命牌: {
     type: "none",
@@ -449,6 +494,7 @@ export const ALL_CARD_DEFS: Record<string, CardEffect> = {
     baseRank: 0,
     rankType: "零",
     consumable: true,
+    description: "本回合自己输的牌不放入弃牌堆。",
   },
 };
 

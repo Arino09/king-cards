@@ -314,6 +314,12 @@ export interface TowerRunState {
   todayAction: "打工" | "访问NPC" | "挑战Boss" | "商店" | null;
   /** 今日是否已访问主角，下一天重置 */
   protagonistVisitedToday: boolean;
+  /** Buff#10 混乱自选三张：自选的3张卡（仅此buff生效） */
+  chaosKinds: CardKind[];
+  /** 当前对话内容（展示用，对话结束后清空） */
+  currentDialogue: string | null;
+  /** 玩家锁定的初始卡组（用于展示） */
+  lockedDeck: CardKind[];
 }
 
 export interface BattleState {
@@ -337,6 +343,14 @@ export interface BattleState {
 
   /** 玩家使用的一次性卡牌（剩余） */
   playerActiveConsumables: CardInstance[];
+
+  /** 本回合出牌前使用的一次性卡牌效果，结算时应用 */
+  pendingRankAdjust: { 玩家: number; 机器人: number }; // 加减等级（正数加，负数减）
+  pendingConsumeRecall: { 玩家: boolean; 机器人: boolean };   // 续命：本次输牌不进弃牌堆
+  pendingConsumeCancelFunc: { 玩家: boolean; 机器人: boolean }; // 功能失效：本回合功能牌无效
+  pendingConsumeCancelAbility: { 玩家: boolean; 机器人: boolean }; // 能力失效：本回合能力牌无效
+  pendingRegretCard: { 玩家: CardInstance | null; 机器人: CardInstance | null }; // 后悔牌：待重出的牌
+  pendingPeekCard: { 玩家: CardInstance | null; 机器人: CardInstance | null };   // 预见牌：暂存对手牌
 
   /** 上一回合各方出过的实例 id */
   lastPlayedId: { 玩家?: string; 机器人?: string };
@@ -418,6 +432,9 @@ export interface BattleState {
   npcPenalty: number;
   /** NPC战赢了得多少钱 */
   npcReward: number;
+
+  /** 随机等级覆盖（Buff#4/#5：平民/国王随机能力）{ cardId: rank } */
+  randomRank: Record<string, number>;
 }
 
 export interface GameState {

@@ -45,6 +45,13 @@ export function cloneBattle(s: BattleState): BattleState {
     swapAvailable: { ...s.swapAvailable },
     civilizationActive: { ...s.civilizationActive },
     dialogueHistory: [...s.dialogueHistory],
+    pendingRankAdjust: { 玩家: s.pendingRankAdjust.玩家, 机器人: s.pendingRankAdjust.机器人 },
+    pendingConsumeRecall: { ...s.pendingConsumeRecall },
+    pendingConsumeCancelFunc: { ...s.pendingConsumeCancelFunc },
+    pendingConsumeCancelAbility: { ...s.pendingConsumeCancelAbility },
+    pendingRegretCard: { 玩家: s.pendingRegretCard.玩家 ? { ...s.pendingRegretCard.玩家 } : null, 机器人: s.pendingRegretCard.机器人 ? { ...s.pendingRegretCard.机器人 } : null },
+    pendingPeekCard: { 玩家: s.pendingPeekCard.玩家 ? { ...s.pendingPeekCard.玩家 } : null, 机器人: s.pendingPeekCard.机器人 ? { ...s.pendingPeekCard.机器人 } : null },
+    randomRank: { ...s.randomRank },
   };
 }
 
@@ -186,8 +193,8 @@ function compareWithRankOverride(
   aiCard: CardInstance,
   battle: BattleState,
 ): CompareOutcome {
-  const pRank = getCardRank(playerCard, "玩家", battle);
-  const aRank = getCardRank(aiCard, "机器人", battle);
+  const pRank = getCardRank(playerCard, "玩家", battle) + battle.pendingRankAdjust.玩家;
+  const aRank = getCardRank(aiCard, "机器人", battle) + battle.pendingRankAdjust.机器人;
 
   // 同等级 → 双败
   if (pRank === aRank) return "双败";
@@ -221,19 +228,19 @@ export function applyCardEffects(
   const pDef = ALL_CARD_DEFS[playerCard.kind];
   const aDef = ALL_CARD_DEFS[aiCard.kind];
 
-  // 占卜师：标记下回合必赢
-  if (pDef.type === "must_loss_then_win") {
+  const playerCancelsAiFunc = next.pendingConsumeCancelFunc["玩家"];
+  const playerCancelsAiAbility = next.pendingConsumeCancelAbility["玩家"];
+
+  // 占卜师（功能）：若被失效则跳过
+  if (!playerCancelsAiFunc && pDef.type === "must_loss_then_win") {
     next.divinerNextWin["玩家"] = true;
   }
-  if (aDef.type === "must_loss_then_win") {
+  if (!playerCancelsAiFunc && aDef.type === "must_loss_then_win") {
     next.divinerNextWin["机器人"] = true;
   }
 
-  // 伪神：下回合必输（暂存，战斗结束后处理）
-  // （通过 lastPlayedId 的特殊标记处理，或在下回合开始时处理）
-
-  // 命运：交换可见牌组
-  if (pDef.type === "swap_visible" || aDef.type === "swap_visible") {
+  // 命运（功能）：若被失效则跳过
+  if (!playerCancelsAiFunc && (pDef.type === "swap_visible" || aDef.type === "swap_visible")) {
     const pv = [...next.playerVisibleDeck];
     const av = [...next.aiVisibleDeck];
     next.playerVisibleDeck = av;
@@ -241,84 +248,119 @@ export function applyCardEffects(
     next.visibleSwapped = true;
   }
 
-  // 文明：手牌全变国王
-  if (pDef.type === "all_become_king") {
+  // 文明（功能）：若被失效则跳过
+  if (!playerCancelsAiFunc && pDef.type === "all_become_king") {
     next.civilizationActive["玩家"] = true;
   }
-  if (aDef.type === "all_become_king") {
+  if (!playerCancelsAiFunc && aDef.type === "all_become_king") {
     next.civilizationActive["机器人"] = true;
   }
 
-  // 亚特兰蒂斯：取消上限
-  if (pDef.type === "none" && playerCard.kind === "亚特兰蒂斯") {
+  // 亚特兰蒂斯（能力）：若被失效则跳过
+  if (!playerCancelsAiAbility && playerCard.kind === "亚特兰蒂斯") {
     next.noTurnLimit = true;
     next.atlantisUsed["玩家"] = true;
   }
-  if (aDef.type === "none" && aiCard.kind === "亚特兰蒂斯") {
+  if (!playerCancelsAiAbility && aiCard.kind === "亚特兰蒂斯") {
     next.noTurnLimit = true;
     next.atlantisUsed["机器人"] = true;
   }
 
-  // 永不放弃/奉献精神：增加出牌次数
-  if (pDef.type === "continuous_rank") {
+  // 永不放弃/奉献精神（功能）：若被失效则跳过
+  if (!playerCancelsAiFunc && pDef.type === "continuous_rank") {
     next.continuousPlayed["玩家"] += 1;
   }
-  if (aDef.type === "continuous_rank") {
+  if (!playerCancelsAiFunc && aDef.type === "continuous_rank") {
     next.continuousPlayed["机器人"] += 1;
   }
 
-  // 偶数/奇数形态
-  if (pDef.type === "trigger_modifier" && pDef.param !== undefined) {
+  // 偶数/奇数形态（能力）：若被失效则跳过
+  if (!playerCancelsAiAbility && pDef.type === "trigger_modifier" && pDef.param !== undefined) {
     if (pDef.param === 0) next.triggerMod["玩家"] = "even";
     if (pDef.param === 1) next.triggerMod["玩家"] = "odd";
+    // 指数形态：激活 + 从可见牌组弃一张
+    if (pDef.param === 2) {
+      next.exponentialActive["玩家"] = true;
+      if (next.playerVisibleDeck.length > 0) {
+        const idx = Math.floor(Math.random() * next.playerVisibleDeck.length);
+        next.playerVisibleDeck.splice(idx, 1);
+      }
+    }
   }
-  if (aDef.type === "trigger_modifier" && aDef.param !== undefined) {
+  if (!playerCancelsAiAbility && aDef.type === "trigger_modifier" && aDef.param !== undefined) {
     if (aDef.param === 0) next.triggerMod["机器人"] = "even";
     if (aDef.param === 1) next.triggerMod["机器人"] = "odd";
-  }
-
-  // 指数形态
-  if (pDef.type === "trigger_modifier" && pDef.param === 2) {
-    next.exponentialActive["玩家"] = true;
-  }
-  if (aDef.type === "trigger_modifier" && aDef.param === 2) {
-    next.exponentialActive["机器人"] = true;
-  }
-
-  // 暖日/雪花
-  if (pDef.type === "round_modifier") {
-    // 暖日：.5牌-0.25
-    if (playerCard.kind === "暖日") {
-      next.roundModifier["玩家"] -= 0.25;
-    }
-    // 雪花：.5牌+0.25
-    if (playerCard.kind === "雪花") {
-      next.roundModifier["机器人"] += 0.25;
-    }
-  }
-  if (aDef.type === "round_modifier") {
-    if (aiCard.kind === "暖日") {
-      next.roundModifier["玩家"] -= 0.25;
-    }
-    if (aiCard.kind === "雪花") {
-      next.roundModifier["机器人"] += 0.25;
+    if (aDef.param === 2) {
+      next.exponentialActive["机器人"] = true;
+      if (next.aiVisibleDeck.length > 0) {
+        const idx = Math.floor(Math.random() * next.aiVisibleDeck.length);
+        next.aiVisibleDeck.splice(idx, 1);
+      }
     }
   }
 
-  // 金色项链
-  if (playerCard.kind === "金色项链") {
+  // 暖日/雪花（能力）：若被失效则跳过
+  if (!playerCancelsAiAbility && playerCard.kind === "暖日") {
+    next.roundModifier["玩家"] -= 0.25;
+  }
+  if (!playerCancelsAiAbility && playerCard.kind === "雪花") {
+    next.roundModifier["机器人"] += 0.25;
+  }
+  if (!playerCancelsAiAbility && aiCard.kind === "暖日") {
+    next.roundModifier["玩家"] -= 0.25;
+  }
+  if (!playerCancelsAiAbility && aiCard.kind === "雪花") {
+    next.roundModifier["机器人"] += 0.25;
+  }
+
+  // 金色项链（能力）：若被失效则跳过
+  if (!playerCancelsAiAbility && playerCard.kind === "金色项链") {
     next.goldenNecklaceActive["玩家"] = true;
   }
-  if (aiCard.kind === "金色项链") {
+  if (!playerCancelsAiAbility && aiCard.kind === "金色项链") {
     next.goldenNecklaceActive["机器人"] = true;
   }
 
-  // 孤注一掷
-  if (playerCard.kind === "孤注一掷") {
+  // 孤注一掷（能力）：激活后每次出牌从可见牌组弃一张（等级/2在getCardRank中处理）
+  if (!playerCancelsAiAbility && playerCard.kind === "孤注一掷") {
     next.gamblerActive["玩家"] = true;
   }
-  if (aiCard.kind === "孤注一掷") {
+  if (!playerCancelsAiAbility && aiCard.kind === "孤注一掷") {
     next.gamblerActive["机器人"] = true;
+  }
+  if (!playerCancelsAiAbility && next.gamblerActive["玩家"] && next.playerVisibleDeck.length > 0) {
+    const idx = Math.floor(Math.random() * next.playerVisibleDeck.length);
+    next.playerVisibleDeck.splice(idx, 1);
+  }
+  if (!playerCancelsAiAbility && next.gamblerActive["机器人"] && next.aiVisibleDeck.length > 0) {
+    const idx = Math.floor(Math.random() * next.aiVisibleDeck.length);
+    next.aiVisibleDeck.splice(idx, 1);
+  }
+
+  // 指数形态：每次出牌时弃一张（若已激活但本回合刚激活，则上面已处理）
+  if (!playerCancelsAiAbility && next.exponentialActive["玩家"] && playerCard.kind !== "指数形态" && next.playerVisibleDeck.length > 0) {
+    const idx = Math.floor(Math.random() * next.playerVisibleDeck.length);
+    next.playerVisibleDeck.splice(idx, 1);
+  }
+  if (!playerCancelsAiAbility && next.exponentialActive["机器人"] && aiCard.kind !== "指数形态" && next.aiVisibleDeck.length > 0) {
+    const idx = Math.floor(Math.random() * next.aiVisibleDeck.length);
+    next.aiVisibleDeck.splice(idx, 1);
+  }
+
+  // 白日梦（能力）：若被失效则跳过激活
+  if (!playerCancelsAiAbility && playerCard.kind === "白日梦") {
+    next.daydreamActive["玩家"] = true;
+  }
+  if (!playerCancelsAiAbility && aiCard.kind === "白日梦") {
+    next.daydreamActive["机器人"] = true;
+  }
+  if (next.exponentialActive["玩家"] && playerCard.kind !== "指数形态" && next.playerVisibleDeck.length > 0) {
+    const idx = Math.floor(Math.random() * next.playerVisibleDeck.length);
+    next.playerVisibleDeck.splice(idx, 1);
+  }
+  if (next.exponentialActive["机器人"] && aiCard.kind !== "指数形态" && next.aiVisibleDeck.length > 0) {
+    const idx = Math.floor(Math.random() * next.aiVisibleDeck.length);
+    next.aiVisibleDeck.splice(idx, 1);
   }
 
   // 白日梦
@@ -344,6 +386,62 @@ export function applyCardEffects(
     if (!next.fourSymbolsWon["机器人"].includes(aiCard.kind)) {
       next.fourSymbolsWon["机器人"].push(aiCard.kind);
     }
+  }
+
+  return next;
+}
+
+// ========== 一次性卡牌 ==========
+
+/**
+ * 使用一张一次性卡牌，消耗它并设置本回合效果。
+ * @returns 更新后的战斗状态（若无此牌则返回原状态）
+ */
+export function applyConsumableEffect(
+  battle: BattleState,
+  consumableId: string,
+): BattleState {
+  const next = cloneBattle(battle);
+  const idx = next.playerActiveConsumables.findIndex((c) => c.id === consumableId);
+  if (idx < 0) return battle;
+
+  const card = next.playerActiveConsumables[idx]!;
+  next.playerActiveConsumables.splice(idx, 1);
+
+  switch (card.kind) {
+    case "减0.5牌":
+      next.pendingRankAdjust["玩家"] -= 0.5;
+      break;
+    case "减1牌":
+      next.pendingRankAdjust["玩家"] -= 1;
+      break;
+    case "加0.5牌":
+      next.pendingRankAdjust["机器人"] += 0.5;
+      break;
+    case "加1牌":
+      next.pendingRankAdjust["机器人"] += 1;
+      break;
+    case "续命牌":
+      next.pendingConsumeRecall["玩家"] = true;
+      break;
+    case "功能失效牌":
+      next.pendingConsumeCancelFunc["玩家"] = true;
+      break;
+    case "能力失效牌":
+      next.pendingConsumeCancelAbility["玩家"] = true;
+      break;
+    case "预见牌":
+      // 暂存AI已选的牌供展示（若AI已出牌则存pendingAiCard）
+      if (battle.pendingAiCard) {
+        next.pendingPeekCard["玩家"] = { ...battle.pendingAiCard };
+      }
+      break;
+    case "后悔牌":
+      // 暂存玩家刚出的牌，待重新选择（展示阶段可重出）
+      if (battle.pendingPlayerCard) {
+        next.pendingRegretCard["玩家"] = { ...battle.pendingPlayerCard };
+      }
+      break;
   }
 
   return next;
@@ -519,5 +617,12 @@ export function createBattleStateFromWeather(
     battleType,
     npcPenalty,
     npcReward,
+    pendingRankAdjust: { 玩家: 0, 机器人: 0 },
+    pendingConsumeRecall: { 玩家: false, 机器人: false },
+    pendingConsumeCancelFunc: { 玩家: false, 机器人: false },
+    pendingConsumeCancelAbility: { 玩家: false, 机器人: false },
+    pendingRegretCard: { 玩家: null, 机器人: null },
+    pendingPeekCard: { 玩家: null, 机器人: null },
+    randomRank: {},
   };
 }

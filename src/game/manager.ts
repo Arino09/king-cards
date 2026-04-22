@@ -23,6 +23,7 @@ import {
   getTerminalWinner,
   describeRound,
   applyCardEffects,
+  applyConsumableEffect,
   discardCard,
   returnToHand,
 } from "./battleEngine";
@@ -46,8 +47,8 @@ export function createNewGame(
   character: CharacterId,
   buff: RoguelikeBuff,
   initialHand: CardKind[],
+  chaosKinds: CardKind[] = [],
 ): GameState {
-  const char = CHARACTERS[character];
   const buffResult = applyBuffEffect(buff, 50);
 
   // 解锁的牌：基础7种 + 通过Buff获得
@@ -72,6 +73,9 @@ export function createNewGame(
       shopRefreshedToday: false,
       todayAction: null,
       protagonistVisitedToday: false,
+      chaosKinds,
+      currentDialogue: null,
+      lockedDeck: initialHand,
     },
     shop: createDailyShop(baseCards),
     battle: null,
@@ -112,32 +116,72 @@ export function startBattle(state: GameState): GameState {
     0,
   );
 
+  // Buff#4 平民随机能力（3~0）、Buff#5 国王随机能力（4~0）
+  const randomRank: Record<string, number> = {};
+  if (state.tower.buff === "平民随机能力") {
+    for (const card of playerHand) {
+      if (card.kind === "平民") {
+        randomRank[card.id] = Math.floor(Math.random() * 4); // 0~3
+      }
+    }
+  }
+  if (state.tower.buff === "国王随机能力") {
+    for (const card of playerHand) {
+      if (card.kind === "国王") {
+        randomRank[card.id] = Math.floor(Math.random() * 5); // 0~4
+      }
+    }
+  }
+
+  battle.randomRank = randomRank;
+
   return {
     ...state,
     battle,
     forcedBossBattle: false,
+    tower: {
+      ...state.tower,
+      currentDialogue: `[${floor.bossName}]：${floor.bossDialogue[Math.floor(Math.random() * floor.bossDialogue.length)] ?? ""}\n\n此处为对话，暂无`,
+    },
     eventLog: [
       ...state.eventLog,
       `第${state.tower.currentFloor}层 - ${floor.bossName}战开始！`,
+      `[对话] 此处为对话，暂无`,
     ],
   };
 }
 
 function buildPlayerHand(state: GameState): CardInstance[] {
-  // 从已解锁卡牌中构建手牌（实际从 Zustand 存储中取，这里只是兜底）
+  // Buff#10 混乱自选三张：完全混乱（随机使用自选3张+国王+平民的随机子集）
+  // 非Boss战斗时使用混乱手牌；Boss战用正常逻辑
+  if (state.tower.buff === "混乱自选三张" && state.tower.chaosKinds.length === 3) {
+    const result: CardInstance[] = [];
+    result.push({ id: nextCardId(), kind: "国王" });
+    result.push({ id: nextCardId(), kind: "平民" });
+    // 从自选3张中随机选0~3张
+    const shuffled = [...state.tower.chaosKinds].sort(() => Math.random() - 0.5);
+    const extraCount = Math.floor(Math.random() * 4); // 0~3
+    for (let i = 0; i < extraCount; i++) {
+      result.push({ id: nextCardId(), kind: shuffled[i] as CardKind });
+    }
+    return result;
+  }
+
+  // 正常手牌构建：恰好有一张国王和一张平民，其余随机补满至10张
   const kinds = PLAYABLE_CARD_KINDS.filter((k) =>
     state.tower.unlockedCards.includes(k as CardKind),
   );
   const result: CardInstance[] = [];
-  for (const k of kinds.slice(0, 10)) {
+
+  result.push({ id: nextCardId(), kind: "国王" });
+  result.push({ id: nextCardId(), kind: "平民" });
+
+  const shuffled = [...kinds]
+    .filter((k) => k !== "国王" && k !== "平民")
+    .sort(() => Math.random() - 0.5);
+  for (const k of shuffled) {
+    if (result.length >= 10) break;
     result.push({ id: nextCardId(), kind: k as CardKind });
-  }
-  // 确保有国王和平民
-  if (!result.some((c) => c.kind === "国王")) {
-    result[0] = { id: nextCardId(), kind: "国王" };
-  }
-  if (!result.some((c) => c.kind === "平民")) {
-    result[1] = { id: nextCardId(), kind: "平民" };
   }
   return result;
 }
@@ -149,15 +193,18 @@ function buildBossHand(
   unlocked: CardKind[],
 ): { hand: CardInstance[]; visible: CardInstance[]; hidden: CardInstance[] } {
   const available = unlocked.length > 0 ? unlocked : PLAYABLE_CARD_KINDS;
+  // 可选池：排除国王和平民（各只放1张）
+  const pool = available.filter((k) => k !== "国王" && k !== "平民") as CardKind[];
 
   function randomKind(): CardKind {
-    return available[Math.floor(Math.random() * available.length)] as CardKind;
+    return pool[Math.floor(Math.random() * pool.length)] as CardKind;
   }
 
   const hand: CardKind[] = [];
   for (let i = 0; i < handSize; i++) hand.push(randomKind());
-  if (!hand.includes("国王")) hand[0] = "国王";
-  if (!hand.includes("平民")) hand[1] = "平民";
+  // 确保恰好各1张国王和平民
+  hand[0] = "国王";
+  hand[1] = "平民";
 
   const visible: CardKind[] = [];
   for (let i = 0; i < visibleCount; i++) visible.push(randomKind());
@@ -225,6 +272,14 @@ export function resolveRound(
 
   // 移除出的牌
   const next = cloneBattle(battle);
+
+  // 清空本回合一次性卡牌效果
+  next.pendingRankAdjust = { 玩家: 0, 机器人: 0 };
+  next.pendingConsumeRecall = { 玩家: false, 机器人: false };
+  next.pendingConsumeCancelFunc = { 玩家: false, 机器人: false };
+  next.pendingConsumeCancelAbility = { 玩家: false, 机器人: false };
+  next.pendingPeekCard = { 玩家: null, 机器人: null };
+
   const pIdx = next.playerHand.findIndex((c) => c.id === playerCardId);
   if (pIdx >= 0) next.playerHand.splice(pIdx, 1);
   const aIdx = next.aiHand.findIndex((c) => c.id === aiCardId);
@@ -243,15 +298,23 @@ export function resolveRound(
       ? ("玩家胜" as const)
       : outcome;
 
-  // 结算
+  // 结算（考虑续命效果：续命方本次输牌不进弃牌堆）
   if (finalOutcome === "双败") {
-    withEffects.playerDiscard.push({ ...playerCard });
-    withEffects.aiDiscard.push({ ...aiCard });
+    if (!withEffects.pendingConsumeRecall["玩家"]) {
+      withEffects.playerDiscard.push({ ...playerCard });
+    }
+    if (!withEffects.pendingConsumeRecall["机器人"]) {
+      withEffects.aiDiscard.push({ ...aiCard });
+    }
   } else if (finalOutcome === "玩家胜") {
     withEffects.playerHand.push({ ...playerCard });
-    withEffects.aiDiscard.push({ ...aiCard });
+    if (!withEffects.pendingConsumeRecall["机器人"]) {
+      withEffects.aiDiscard.push({ ...aiCard });
+    }
   } else {
-    withEffects.playerDiscard.push({ ...playerCard });
+    if (!withEffects.pendingConsumeRecall["玩家"]) {
+      withEffects.playerDiscard.push({ ...playerCard });
+    }
     withEffects.aiHand.push({ ...aiCard });
   }
 
@@ -293,6 +356,25 @@ export function continueAfterRound(state: GameState): GameState {
   const battle = state.battle!;
   if (battle.phase !== "展示结算") return state;
 
+  // 再次检查终局：某方手牌已空则直接结束
+  const winner = getTerminalWinner(battle);
+  if (winner) {
+    const next = cloneBattle(battle);
+    next.phase = "游戏结束";
+    next.winner = winner;
+    const baseGold = state.tower.currentFloor * 10;
+    const goldMultiplier = CHARACTERS[state.tower.character]?.goldMultiplier ?? 1;
+    const finalGold = state.tower.weather === "雨季"
+      ? Math.floor(baseGold * goldMultiplier * 1.5)
+      : Math.floor(baseGold * goldMultiplier);
+    next.result = {
+      winner,
+      turns: next.turn - 1,
+      baseGold: finalGold,
+    };
+    return { ...state, battle: next };
+  }
+
   const next = cloneBattle(battle);
   next.phase = "等待玩家选牌";
   next.pendingPlayerCard = undefined;
@@ -316,15 +398,18 @@ function buildNpcHand(
       ALL_CARD_DEFS[k]?.cardType === "基础" ||
       ALL_CARD_DEFS[k]?.cardType === "补充",
   );
+  // 可选池：排除国王和平民（各只放1张）
+  const pool = basicCards.filter((k) => k !== "国王" && k !== "平民") as CardKind[];
 
   function randomKind(): CardKind {
-    return basicCards[Math.floor(Math.random() * basicCards.length)]!;
+    return pool[Math.floor(Math.random() * pool.length)] as CardKind;
   }
 
   const hand: CardKind[] = [];
   for (let i = 0; i < handSize; i++) hand.push(randomKind());
-  if (!hand.includes("国王")) hand[0] = "国王";
-  if (!hand.includes("平民")) hand[1] = "平民";
+  // 确保恰好各1张国王和平民
+  hand[0] = "国王";
+  hand[1] = "平民";
 
   const visible: CardKind[] = [];
   for (let i = 0; i < visibleCount; i++) visible.push(randomKind());
@@ -356,6 +441,22 @@ export function fightNpc(
         ALL_CARD_DEFS[k]?.cardType === "补充",
     );
     const kind = basicCards[Math.floor(Math.random() * basicCards.length)]!;
+    // Buff#6 随机卡牌数量（0~2）
+    const actuallyGain = state.tower.buff === "随机卡牌数量"
+      ? Math.floor(Math.random() * 3) > 0 // 2/3概率得卡
+      : true;
+    if (!actuallyGain) {
+      return {
+        type: "event",
+        state: {
+          ...state,
+          eventLog: [
+            ...state.eventLog,
+            `[${floor.npcName}] 送了你一张「${kind}」，但随机效果让你失去了它！`,
+          ],
+        },
+      };
+    }
     const newUnlocked = state.tower.unlockedCards.includes(kind)
       ? state.tower.unlockedCards
       : [...state.tower.unlockedCards, kind];
@@ -399,9 +500,14 @@ export function fightNpc(
       type: "event",
       state: {
         ...state,
+        tower: {
+          ...state.tower,
+          currentDialogue: `[${floor.npcName}]：${noEvents[Math.floor(Math.random() * noEvents.length)]}\n\n此处为对话，暂无`,
+        },
         eventLog: [
           ...state.eventLog,
           `[${floor.npcName}] ${noEvents[Math.floor(Math.random() * noEvents.length)]}`,
+          `[对话] 此处为对话，暂无`,
         ],
       },
     };
@@ -425,14 +531,37 @@ export function fightNpc(
     npcReward,
   );
 
+  // Buff#4 平民随机能力（3~0）、Buff#5 国王随机能力（4~0）
+  const randomRank: Record<string, number> = {};
+  if (state.tower.buff === "平民随机能力") {
+    for (const card of playerHand) {
+      if (card.kind === "平民") {
+        randomRank[card.id] = Math.floor(Math.random() * 4);
+      }
+    }
+  }
+  if (state.tower.buff === "国王随机能力") {
+    for (const card of playerHand) {
+      if (card.kind === "国王") {
+        randomRank[card.id] = Math.floor(Math.random() * 5);
+      }
+    }
+  }
+  battle.randomRank = randomRank;
+
   return {
     type: "battle",
     state: {
       ...state,
       battle,
+      tower: {
+        ...state.tower,
+        currentDialogue: `[${floor.npcName}]：\n\n此处为对话，暂无`,
+      },
       eventLog: [
         ...state.eventLog,
         `[${floor.npcName}] 向你发起了挑战！`,
+        `[对话] 此处为对话，暂无`,
       ],
     },
   };
@@ -469,25 +598,44 @@ export function endBattle(state: GameState): { game: GameState; runOver: boolean
       const earned = result?.baseGold ?? state.tower.currentFloor * 10;
       const char = CHARACTERS[state.tower.character];
       const extraCards = char.extraCardsOnWin;
-      const defeatedKinds: CardKind[] = [
-        ...battle.aiHand.map((c) => c.kind),
-        ...battle.aiDiscard.map((c) => c.kind),
-        ...battle.aiVisibleDeck.map((c) => c.kind),
-        ...battle.aiHiddenDeck.map((c) => c.kind),
-      ].filter((k): k is CardKind => k !== undefined);
+      // 收集敌人所有卡牌，去重，排除国王和平民（不可获得）
+      const allDefeatedKinds = new Set<CardKind>();
+      for (const c of battle.aiHand) allDefeatedKinds.add(c.kind);
+      for (const c of battle.aiDiscard) allDefeatedKinds.add(c.kind);
+      for (const c of battle.aiVisibleDeck) allDefeatedKinds.add(c.kind);
+      for (const c of battle.aiHiddenDeck) allDefeatedKinds.add(c.kind);
+      allDefeatedKinds.delete("国王");
+      allDefeatedKinds.delete("平民");
 
-      const options = generateCardRewards(defeatedKinds, 1 + extraCards);
+      // 策划：获胜后自行选择获得一张敌人卡牌（除国王和平民外）
+      // 女2额外获得1张（自动获得，不需选择）
+      const selectableKinds = Array.from(allDefeatedKinds) as CardKind[];
+
+      // 女2额外卡：直接解锁（随机1张，不放入选项）
+      let newUnlocked = newState.tower.unlockedCards;
+      const shuffled = selectableKinds.sort(() => Math.random() - 0.5);
+      const autoBonus = shuffled.slice(0, extraCards);
+      for (const kind of autoBonus) {
+        if (!newUnlocked.includes(kind)) {
+          newUnlocked = [...newUnlocked, kind];
+        }
+      }
+
+      // 玩家从所有敌人卡牌中自选一张
+      const options = selectableKinds;
       newState = {
         ...newState,
         tower: {
           ...newState.tower,
           gold: newState.tower.gold + earned,
           defeatedBosses: [...newState.tower.defeatedBosses, floor.bossName],
+          unlockedCards: newUnlocked,
         },
         cardRewardOptions: options,
         eventLog: [
           ...newState.eventLog,
           `你击败了${floor.bossName}！获得${earned}金币。`,
+          ...(autoBonus.length > 0 ? [`女2被动：额外获得「${autoBonus[0]}」！`] : []),
           ...(options.length > 0 ? ["选择一张卡牌作为奖励。"] : []),
         ],
       };
@@ -537,6 +685,15 @@ export function endBattle(state: GameState): { game: GameState; runOver: boolean
 export function selectRewardCard(state: GameState, kind: CardKind): GameState {
   if (!state.cardRewardOptions.includes(kind)) {
     return state;
+  }
+  // Buff#6 随机卡牌数量（0~2）
+  if (state.tower.buff === "随机卡牌数量" && Math.floor(Math.random() * 3) === 0) {
+    // 1/3概率得0张
+    return {
+      ...state,
+      cardRewardOptions: state.cardRewardOptions.filter((k) => k !== kind),
+      eventLog: [...state.eventLog, `「${kind}」被随机效果吞没了……`],
+    };
   }
   const unlocked = state.tower.unlockedCards.includes(kind)
     ? state.tower.unlockedCards

@@ -3,6 +3,7 @@ import { StartScreen } from "./StartScreen";
 import { CharacterSelectScreen } from "./CharacterSelectScreen";
 import { BuffSelectScreen } from "./BuffSelectScreen";
 import { DeckSetupScreen } from "./DeckSetupScreen";
+import { ChaosSelectScreen } from "./ChaosSelectScreen";
 import { TowerScreen } from "./TowerScreen";
 import { BattleScreen } from "./BattleScreen";
 import { ShopScreen } from "./ShopScreen";
@@ -19,6 +20,7 @@ export function GameApp() {
         {screen === "角色选择" && <CharacterSelectScreen />}
         {screen === "Buff选择" && <BuffSelectScreen />}
         {screen === "组牌" && <DeckSetupScreen />}
+        {screen === "混乱自选" && <ChaosSelectScreen />}
         {screen === "塔内" && <TowerScreen />}
         {screen === "战斗" && <BattleScreen />}
         {screen === "商店" && <ShopScreen />}
